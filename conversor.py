@@ -25,14 +25,16 @@ def read_input_file(file_path):
     return type_, transitions
 
 def write_output_file(transitions, type_, input_file_name):
-    output_file_name = input_file_name[:-4] + '.out'  # Assuming input_file_name ends with '.txt'
+    output_file_name = input_file_name[:-4] + '.out'  #corta o .txt do nome (ultimos 4 caracteres)
     with open(output_file_name, 'w') as output_file:
         if type_[1] == 'S':
             output_file.write(";I\n")
         else:
             output_file.write(";S\n")
         for transition in transitions:
+            #formata as transicoes pro simulador
             output_file.write(f"{transition.current_state} {transition.symbol_read} {transition.symbol_write} {transition.movement} {transition.dest_state}\n")
+
 
 def find_transition(transitions, current_state, symbol_read, symbol_write, movement, dest_state):
     for t in transitions:
@@ -52,16 +54,19 @@ def rename_state(transitions, old_name, new_name):
             t.dest_state = new_name
 
 def add_transition(transitions, current_state, symbol_read, symbol_write, movement, dest_state):
+    #verifica se transicao ainda nao existe
     if find_transition(transitions, current_state, symbol_read, symbol_write, movement, dest_state):
         return
     transitions.append(Transition(current_state, symbol_read, symbol_write, movement, dest_state))
 
 def sipser_to_standard_setup(transitions):
-    rename_state(transitions, "0", "0_old")
-    add_transition(transitions, "0", '*', '*', 'l', "1_aux")
+    rename_state(transitions, "0", "0_old") #renomeia o estado incial
+    #marca o inicio da fita
+    add_transition(transitions, "0", '*', '*', 'l', "1_aux") 
     add_transition(transitions, "1_aux", '_', '#', 'r', "0_old")
 
 def left_delimiter(transitions):
+    #procura transicoes que movem o cabecote pra esquerda
     for t in transitions:
         if t.movement == 'l' and t.current_state != "0":
             add_transition(transitions, t.dest_state, '#', '#', 'r', t.dest_state)
@@ -71,7 +76,8 @@ def sipser_to_standard(transitions):
     left_delimiter(transitions)
 
 def standard_to_sipser_setup(transitions):
-    rename_state(transitions, "0", "0_old")
+    rename_state(transitions, "0", "0_old") #renomeia estado inicial
+    #transicoes antes do estado do old estado inicial
     add_transition(transitions, "0", '0', '#', 'r', "1_aux")
     add_transition(transitions, "0", '1', '#', 'r', "2_aux")
     add_transition(transitions, "1_aux", '0', '0', 'r', "1_aux")
@@ -85,6 +91,7 @@ def standard_to_sipser_setup(transitions):
     add_transition(transitions, "4_aux", '#', '#', 'r', "0_old")
 
 def state_without_diversion(current_state, dest_state):
+    #confere se o estado atual ou destino da transição não é um estado de desvio ou faz parte do setup
     if not ("right_delim" in current_state or "right_delim" in dest_state or
             "shift" in current_state or "shift" in dest_state or
             "aux" in current_state or "aux" in dest_state or
@@ -93,12 +100,14 @@ def state_without_diversion(current_state, dest_state):
     return False
 
 def exists_diversion(transitions, initial_state, diversion_type):
+    #confere pro estado se existe desvio do tipo right_delim ou shift
     for t in transitions:
         if t.current_state == initial_state and diversion_type in t.dest_state:
             return True
     return False
 
 def left_delimiter_standard(transitions):
+    #verifica transicoes a esquerda se encontra o delimitador esquerdo
     for i, t in enumerate(transitions):
         if (t.movement == 'l' and state_without_diversion(t.current_state, t.dest_state) and
             not exists_diversion(transitions, t.dest_state, "shift")):
@@ -111,7 +120,9 @@ def left_delimiter_standard(transitions):
             shift_4 = f"shift_4_{num}"
             shift_final = f"shift_final_{num}"
             
+            #transicao de deslocamento
             add_transition(transitions, t.dest_state, '#', '#', 'r', shift_right)
+
             add_transition(transitions, shift_right, '_', '_', 'r', shift_1)
             add_transition(transitions, shift_right, '0', '_', 'r', shift_2)
             add_transition(transitions, shift_right, '1', '_', 'r', shift_3)
@@ -129,6 +140,8 @@ def left_delimiter_standard(transitions):
             add_transition(transitions, shift_3, '&', '1', 'r', shift_4)
             add_transition(transitions, shift_4, '_', '&', 'l', shift_final)
             add_transition(transitions, shift_final, '*', '*', 'l', shift_final)
+
+            #volta ao estado original
             add_transition(transitions, shift_final, '#', '#', 'r', t.dest_state)
 
 def right_delimiter_standard(transitions):
@@ -147,8 +160,9 @@ def standard_to_sipser(transitions):
     left_delimiter_standard(transitions)
     right_delimiter_standard(transitions)
 
+
 def main(input_file):
-    input_file_name = os.path.basename(input_file)  # Extract file name from path
+    input_file_name = os.path.basename(input_file)  #extrai o nome do arquivo de entrada
     type_, transitions = read_input_file(input_file)
     
     if type_[1] == 'S':
@@ -163,4 +177,4 @@ if __name__ == "__main__":
         print("Usage: python conversor.py <input_file>")
         sys.exit(1)
     
-    main(sys.argv[1])
+    main(sys.argv[1]) #chama a função principal com o arquivo de entrada de argumento
